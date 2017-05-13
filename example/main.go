@@ -1,10 +1,9 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"os"
-
-	"fmt"
 
 	"github.com/monmaru/go-ses"
 )
@@ -27,7 +26,7 @@ func main() {
 
 	from := ""
 	to := ""
-	params := ses.EmailParams{
+	params := &ses.EmailParams{
 		From:     from,
 		To:       to,
 		Subject:  "Hello world!!",

@@ -46,7 +46,7 @@ func (c *Client) newSESSession() *ses.SES {
 }
 
 // SendEmail ...
-func (c *Client) SendEmail(params EmailParams) (string, error) {
+func (c *Client) SendEmail(params *EmailParams) (string, error) {
 	email := params.toSendEmailInput()
 	out, err := c.newSESSession().SendEmail(email)
 	if err != nil {
