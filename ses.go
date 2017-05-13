@@ -48,8 +48,7 @@ func (c *Client) newSESSession() *ses.SES {
 // SendEmail ...
 func (c *Client) SendEmail(params EmailParams) (string, error) {
 	email := params.toSendEmailInput()
-	session := c.newSESSession()
-	out, err := session.SendEmail(email)
+	out, err := c.newSESSession().SendEmail(email)
 	if err != nil {
 		return "", err
 	}
@@ -58,15 +57,14 @@ func (c *Client) SendEmail(params EmailParams) (string, error) {
 }
 
 // SendRawEmail ...
-func (c *Client) SendRawEmail(raw []byte) (string, error) {
+func (c *Client) SendRawEmail(rawText string) (string, error) {
 	rowEmailInput := &ses.SendRawEmailInput{
 		RawMessage: &ses.RawMessage{
-			Data: []byte(raw),
+			Data: []byte(rawText),
 		},
 	}
 
-	session := c.newSESSession()
-	out, err := session.SendRawEmail(rowEmailInput)
+	out, err := c.newSESSession().SendRawEmail(rowEmailInput)
 	if err != nil {
 		return "", err
 	}
@@ -76,32 +74,35 @@ func (c *Client) SendRawEmail(raw []byte) (string, error) {
 
 // EmailParams ...
 type EmailParams struct {
-	from, to, subject, bodyText, bodyHTML string
+	From, To, Subject, BodyText, BodyHTML string
 }
 
 func (e *EmailParams) toSendEmailInput() *ses.SendEmailInput {
 	message := &ses.Message{
 		Body: &ses.Body{
 			Text: &ses.Content{
-				Data: aws.String(e.bodyText),
-			},
-			Html: &ses.Content{
-				Data: aws.String(e.bodyHTML),
+				Data: aws.String(e.BodyText),
 			},
 		},
 		Subject: &ses.Content{
-			Data: aws.String(e.subject),
+			Data: aws.String(e.Subject),
 		},
+	}
+
+	if len(e.BodyHTML) > 0 {
+		message.Body.Html = &ses.Content{
+			Data: aws.String(e.BodyHTML),
+		}
 	}
 
 	return &ses.SendEmailInput{
 		Destination: &ses.Destination{
-			ToAddresses: []*string{aws.String(e.to)},
+			ToAddresses: []*string{aws.String(e.To)},
 		},
 		Message: message,
-		Source:  aws.String(e.from),
+		Source:  aws.String(e.From),
 		ReplyToAddresses: []*string{
-			aws.String(e.from),
+			aws.String(e.From),
 		},
 	}
 }
