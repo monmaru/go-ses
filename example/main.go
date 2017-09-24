@@ -17,7 +17,7 @@ func init() {
 }
 
 func main() {
-	setting := ses.AWSSetting{
+	setting := ses.Config{
 		Region:          region,
 		AccessKeyID:     accessKeyID,
 		SecretAccessKey: secretAccessKey,
@@ -25,17 +25,17 @@ func main() {
 	c := ses.NewClient(setting, nil)
 
 	from := ""
-	to := ""
-	params := &ses.EmailParams{
+	to := []string{""}
+	mail := ses.Mail{
 		From:     from,
 		To:       to,
 		Subject:  "Hello world!!",
 		BodyText: "This is a test mail.",
 	}
 
-	out, err := c.SendEmail(params)
+	msgID, err := c.SendEmail(mail)
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Println(out)
+	fmt.Println(msgID)
 }

@@ -9,31 +9,56 @@ import (
 	"github.com/aws/aws-sdk-go/service/ses"
 )
 
-// AWSSetting ...
-type AWSSetting struct {
+// Config ...
+type Config struct {
 	Region, AccessKeyID, SecretAccessKey string
+}
+
+// Mail ...
+type Mail struct {
+	From     string   `json:"from"`
+	To       []string `json:"to"`
+	Subject  string   `json:"subject"`
+	BodyText string   `json:"bodyText"`
+	BodyHTML string   `json:"bodyHtml"`
+}
+
+// Option ...
+type Option func(*Client)
+
+// HTTPClient ...
+func HTTPClient(httpClient *http.Client) Option {
+	return func(c *Client) {
+		c.httpClient = httpClient
+	}
 }
 
 // Client ...
 type Client struct {
-	setting    AWSSetting
+	config     Config
 	httpClient *http.Client
 }
 
 // NewClient ...
-func NewClient(awsSetting AWSSetting, httpClient *http.Client) *Client {
-	return &Client{
-		setting:    awsSetting,
-		httpClient: httpClient,
+func NewClient(config Config, opts ...Option) *Client {
+	c := &Client{
+		config:     config,
+		httpClient: http.DefaultClient,
 	}
+
+	for _, opt := range opts {
+		opt(c)
+	}
+
+	return c
 }
 
 func (c *Client) newSESSession() *ses.SES {
 	config := &aws.Config{
-		Region: aws.String(c.setting.Region),
+		Region: aws.String(c.config.Region),
 		Credentials: credentials.NewStaticCredentials(
-			c.setting.AccessKeyID,
-			c.setting.SecretAccessKey,
+			c.config.AccessKeyID,
+			c.config.SecretAccessKey,
 			""),
 	}
 
@@ -46,63 +71,63 @@ func (c *Client) newSESSession() *ses.SES {
 }
 
 // SendEmail ...
-func (c *Client) SendEmail(params *EmailParams) (string, error) {
-	email := params.toSendEmailInput()
+func (c *Client) SendEmail(mail Mail) (string, error) {
+	email := mail.buildEmailInput()
 	out, err := c.newSESSession().SendEmail(email)
 	if err != nil {
 		return "", err
 	}
 
-	return out.GoString(), nil
+	return *out.MessageId, nil
 }
 
 // SendRawEmail ...
 func (c *Client) SendRawEmail(rawText string) (string, error) {
-	rowEmailInput := &ses.SendRawEmailInput{
+	rawEmailInput := &ses.SendRawEmailInput{
 		RawMessage: &ses.RawMessage{
 			Data: []byte(rawText),
 		},
 	}
 
-	out, err := c.newSESSession().SendRawEmail(rowEmailInput)
+	out, err := c.newSESSession().SendRawEmail(rawEmailInput)
 	if err != nil {
 		return "", err
 	}
 
-	return out.GoString(), nil
+	return *out.MessageId, nil
 }
 
-// EmailParams ...
-type EmailParams struct {
-	From, To, Subject, BodyText, BodyHTML string
-}
-
-func (e *EmailParams) toSendEmailInput() *ses.SendEmailInput {
+func (m *Mail) buildEmailInput() *ses.SendEmailInput {
 	message := &ses.Message{
 		Body: &ses.Body{
 			Text: &ses.Content{
-				Data: aws.String(e.BodyText),
+				Data: aws.String(m.BodyText),
 			},
 		},
 		Subject: &ses.Content{
-			Data: aws.String(e.Subject),
+			Data: aws.String(m.Subject),
 		},
 	}
 
-	if len(e.BodyHTML) > 0 {
+	if len(m.BodyHTML) > 0 {
 		message.Body.Html = &ses.Content{
-			Data: aws.String(e.BodyHTML),
+			Data: aws.String(m.BodyHTML),
 		}
+	}
+
+	var toAddresses []*string
+	for _, t := range m.To {
+		toAddresses = append(toAddresses, &t)
 	}
 
 	return &ses.SendEmailInput{
 		Destination: &ses.Destination{
-			ToAddresses: []*string{aws.String(e.To)},
+			ToAddresses: toAddresses,
 		},
 		Message: message,
-		Source:  aws.String(e.From),
+		Source:  aws.String(m.From),
 		ReplyToAddresses: []*string{
-			aws.String(e.From),
+			aws.String(m.From),
 		},
 	}
 }
